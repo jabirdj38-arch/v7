@@ -1,111 +1,181 @@
 const moment = require("moment-timezone");
-const axios = require("axios");
-const fs = require("fs-extra");
-const path = require("path");
 
 module.exports.config = {
-  name: "autotimer",
-  version: "5.1",
+  name: "autotime",
+  version: "3.1.1",
   role: 0,
-  author: "ꜰᴀʀʜᴀɴ-ᴋʜᴀɴ", // 🔒 লক করা
-  description: "⏰ প্রতি ঘণ্টায় ভিডিওসহ অটো মেসেজ পাঠাবে (Ultra Optimized)",
-  category: "AutoTime",
-  countDown: 3,
+  credit: "MOHAMMAD BADOL",
+  description: "প্রতি ঘন্টায় সব গ্রুপে স্টাইলিশ টাইম + নামাজের রিমাইন্ডার",
+  category: "system",
+  prefix: true,
+  cooldown: 5
 };
 
-module.exports.onLoad = async function ({ api }) {
-  // 🔒 Author নাম চেক
-  if (module.exports.config.author !== "ꜰᴀʀʜᴀɴ-ᴋʜᴀɴ") {
-    console.error("❌ Author নাম পরিবর্তন করা হয়েছে। ফাইল চলবে না।");
-    return process.exit(1);
+const BN_DIGITS = ["০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯"];
+const BN_DAYS = ["রবিবার", "সোমবার", "মঙ্গলবার", "বুধবার", "বৃহস্পতিবার", "শুক্রবার", "শনিবার"];
+const BN_MONTHS = ["জানুয়ারি", "ফেব্রুয়ারি", "মার্চ", "এপ্রিল", "মে", "জুন", "জুলাই", "আগস্ট", "সেপ্টেম্বর", "অক্টোবর", "নভেম্বর", "ডিসেম্বর"];
+
+function toBanglaNum(n) {
+  return String(n).replace(/[0-9]/g, d => BN_DIGITS[+d]);
+}
+
+function buildMessage() {
+  const now = moment.tz("Asia/Dhaka");
+  const hour = now.format("hh");
+  const minute = now.format("mm");
+  const second = now.format("ss");
+  const ampm = now.format("A");
+  const bnDay = BN_DAYS[now.day()];
+  const day = toBanglaNum(now.format("DD"));
+  const month = BN_MONTHS[now.month()];
+  const year = toBanglaNum(now.format("YYYY"));
+  const hourNum = parseInt(now.format("H"));
+
+  let greeting = "";
+  let emoji = "";
+  let namazNote = "";
+  let isNamazTime = false;
+
+  if (hourNum >= 5 && hourNum < 12) {
+    greeting = "শুভ সকাল";
+    emoji = "🌅";
+  } else if (hourNum >= 12 && hourNum < 15) {
+    greeting = "শুভ দুপুর";
+    emoji = "☀️";
+  } else if (hourNum >= 15 && hourNum < 18) {
+    greeting = "শুভ বিকেল";
+    emoji = "🌤️";
+  } else if (hourNum >= 18 && hourNum < 21) {
+    greeting = "শুভ সন্ধ্যা";
+    emoji = "🌆";
+  } else {
+    greeting = "শুভ রাত";
+    emoji = "🌙";
   }
 
-  const timerData = {
-    "12:00 AM": { text: "⌚┆এখন রাত ১২টা বাজে❥︎খাউয়া দাউয়া করে নেউ,🍽️🍛",         video: "https://files.catbox.moe/y9irm8.mp4" },
-    "01:00 AM": { text: "⌚┆এখন রাত ১টা বাজে❥︎সবাই শুয়ে পড়ো,🌌💤",               video:  "https://files.catbox.moe/gitfya.mp4" },
-    "02:00 AM": { text: "⌚┆এখন রাত ২টা বাজে❥︎প্রেম না কইরা যাইয়া ঘুমা বেক্কল,😾🌠",    video: "https://files.catbox.moe/9aavty.mp4" },
-    "03:00 AM": { text: "⌚┆এখন রাত ৩টা বাজে❥︎যারা ছ্যাকা খাইছে তারা জেগে আছে,🫠🌃", video: "https://files.catbox.moe/p78siw.mp4" },
-    "04:00 AM": { text: "⌚┆এখন রাত ৪টা বাজে❥︎ফজরের প্রস্তুতি নাও,🌄",               video: "https://files.catbox.moe/9uvit1.mp4" },
-    "05:00 AM": { text: "⌚┆এখন সকাল ৫টা বাজে❥︎নামাজ পড়ছো তো?🌅☀️",             video: "https://files.catbox.moe/34etgc.mp4" },
-    "06:00 AM": { text: "⌚┆এখন সকাল ৬টা বাজে❥︎ঘুম থেকে উঠো সবাই,🌞☕",           video: "https://files.catbox.moe/stk4lq.mp4" },
-    "07:00 AM": { text: "⌚┆এখন সকাল ৭টা বাজে❥︎ব্রেকফাস্ট করে নাও,🍞",              video: "https://files.catbox.moe/ladp3x.mp4" },
-    "08:00 AM": { text: "⌚┆এখন সকাল ৮টা বাজে❥︎কাজ শুরু করো মন দিয়ে,🌤️✨",        video: "https://files.catbox.moe/l8vx40.mp4" },
-    "09:00 AM": { text: "⌚┆এখন সকাল ৯টা বাজে❥︎চল কাজে মন দিই!🕘",               video: "https://files.catbox.moe/hgo8gp.mp4" },
-    "10:00 AM": { text: "⌚┆এখন সকাল ১০টা বাজে❥︎তোমাদের মিস করছি,🌞☀️",           video: "https://files.catbox.moe/ejx7a6.mp4" },
-    "11:00 AM": { text: "⌚┆এখন সকাল ১১টা বাজে❥︎কাজ চালিয়ে যাও!😌",               video: "https://files.catbox.moe/gogfic.mp4" },
-    "12:00 PM": { text: "⌚┆এখন দুপুর ১২টা বাজে❥︎ভালোবাসা জানাও সবাইকে,❤️",          video: "https://files.catbox.moe/ilmb5j.mp4" },
-    "01:00 PM": { text: "⌚┆এখন দুপুর ১টা বাজে❥︎জোহরের নামাজ পড়ে নাও,🙇🤲",         video: "https://files.catbox.moe/bq7ngm.mp4" },
-    "02:00 PM": { text: "⌚┆এখন দুপুর ২টা বাজে❥︎দুপুরের খাবার খেয়েছো তো?🍛🌤️",         video: "https://files.catbox.moe/27mwt2.mp4" },
-    "03:00 PM": { text: "⌚┆এখন বিকাল ৩টা বাজে❥︎কাজে ফোকাস করো,🧑‍🔧☀️",             video: "https://files.catbox.moe/eyqcud.mp4" },
-    "04:00 PM": { text: "⌚┆এখন বিকাল ৪টা বাজে❥︎আসরের নামাজ পড়ে নাও,🙇🥀",         video: "https://files.catbox.moe/vlgjrp.mp4" },
-    "05:00 PM": { text: "⌚┆এখন বিকাল ৫টা বাজে❥︎একটু বিশ্রাম নাও,🙂‍↕️🌆",                video: "https://files.catbox.moe/bjjtmk.mp4" },
-    "06:00 PM": { text: "⌚┆এখন সন্ধ্যা ৬টা বাজে❥︎পরিবারকে সময় দাও,😍🌇",              video: "https://files.catbox.moe/22enjn.mp4" },
-    "07:00 PM": { text: "⌚┆এখন সন্ধ্যা ৭টা বাজে❥︎এশার নামাজ পড়ো,❤️🌃",               video: "https://files.catbox.moe/j7fh66.mp4" },
-    "08:00 PM": { text: "⌚┆এখন রাত ৮টা বাজে❥︎আজকের কাজ শেষ করো,🧖🙂‍↔️",           video: "https://files.catbox.moe/btrwyg.mp4" },
-    "09:00 PM": { text: "⌚┆এখন রাত ৯টা বাজে❥︎ঘুমের প্রস্তুতি নাও,😴🌙",                  video: "https://files.catbox.moe/qb2mq3.mp4" },
-    "10:00 PM": { text: "⌚┆এখন রাত ১০টা বাজে❥︎ঘুমাতে যাও, স্বপ্নে দেখা হবে,😴🙂‍↕️",         video: "https://files.catbox.moe/l15d8y.mp4" },
-    "11:00 PM": { text: "⌚┆এখন রাত ১১টা বাজে❥︎ভালোবাসা রইলো,🥰🌌",                  video: "https://files.catbox.moe/rnsdlb.mp4" }
-  };
+  if (hourNum === 5) {
+    isNamazTime = true;
+    namazNote = `\n🕌 ═══ ফজরের সময় ═══ 🕌\n🤲 @everyone উঠো সবাই! ফজরের আজান হয়েছে\n⏰ নামাজ পড়ে দিন শুরু করো, আল্লাহ বরকত দিবেন 💖\n🕌═══════════════════🕌\n`;
+  } else if (hourNum === 13) {
+    isNamazTime = true;
+    namazNote = `\n🕌 ═══ যোহরের সময় ═══ 🕌\n🤲 @everyone সব কাজ বন্ধ করে নামাজে যাও\n⏰ আল্লাহর ডাক এসেছে, নামাজ আদায় করো 🕌✨\n🕌═══════════════════🕌\n`;
+  } else if (hourNum === 16) {
+    isNamazTime = true;
+    namazNote = `\n🕌 ═══ আসরের সময় ═══ 🕌\n🤲 @everyone আসরের আজান হয়েছে\n⏰ নামাজ বেহেশতের চাবি, মিস করো না 🗝️✨\n🕌═══════════════════🕌\n`;
+  } else if (hourNum === 18) {
+    isNamazTime = true;
+    namazNote = `\n🕌 ═══ মাগরিবের সময় ═══ 🕌\n🤲 @everyone সূর্য ডুবার আগে নামাজ পড়ে নাও\n⏰ সময় খুব কম, এখনই মসজিদে যাও 🕌\n🕌═══════════════════🕌\n`;
+  } else if (hourNum === 19) {
+    isNamazTime = true;
+    namazNote = `\n🕌 ═══ এশার সময় ═══ 🕌\n🤲 @everyone দিনের শেষ নামাজ\n⏰ এশা পড়ে রাতের বরকত নাও ✨🕌\n🕌═══════════════════🕌\n`;
+  }
 
-  const cacheDir = path.join(__dirname, "cache");
-  if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
+  const header = isNamazTime? "🕌 𝗡𝗔𝗠𝗔𝗭 𝗧𝗜𝗠𝗘 🕌" : "🕰️ 𝗧𝗜𝗠𝗘 𝗨𝗣𝗗𝗔𝗧𝗘 🕰️";
 
-  let lastSentTime = "";
-
-  const checkTimeAndSend = async () => {
-    const now = moment().tz("Asia/Dhaka").format("hh:mm A");
-
-    if (now !== lastSentTime && timerData[now]) {
-      lastSentTime = now;
-
-      const todayDate = moment().tz("Asia/Dhaka").format("DD-MM-YYYY");
-      const { text, video } = timerData[now];
-
-      const videoName = now.replace(/[: ]/g, "_") + ".mp4";
-      const videoPath = path.join(cacheDir, videoName);
-
-      // ভিডিও ডাউনলোড যদি আগে না থাকে
-      if (!fs.existsSync(videoPath)) {
-        try {
-          const res = await axios.get(video, { responseType: "arraybuffer" });
-          fs.writeFileSync(videoPath, Buffer.from(res.data));
-          console.log("📥 Video downloaded for", now);
-        } catch (err) {
-          console.error("❌ Video download failed for", now, err);
-        }
-      }
-
-      const msg =
-`◢◤━━━━━━━━━━━━━━━━◥◣
-🕒>ᴛɪᴍᴇ: ${now}
-${text}
-◥◣━━━━━━━━━━━━━━━━◢◤
-📅>ᴅᴀᴛᴇ: ${todayDate}
+  return `╔══════════════════╗
+║ ${header} ║
+╚══════════════════╝
+${emoji} ${greeting}! ${emoji}
 ━━━━━━━━━━━━━━━━━━━━
-ʙᴏᴛ ᴏᴡɴᴇʀ:-ꜰᴀʀʜᴀɴ-ᴋʜᴀɴ
-━━━━━━━━━━━━━━━━━━━━`;
+⏰ সময়: ${hour}:${minute}:${second} ${ampm}
+📅 তারিখ: ${day} ${month} ${year}
+📆 বার: ${bnDay}
+━━━━━━━━━━━━━━━━━━━━${namazNote}
+✨ আপনার দিনটি সুন্দর কাটুক ✨
+═════════════════════
+🤖 𝗔𝘂𝘁𝗼 𝗧𝗶𝗺𝗲 + 𝗡𝗮𝗺𝗮𝘇 𝗦𝘆𝘀𝘁𝗲𝗺 🤖
+═════════════════════`;
+}
 
+module.exports.onLoad = async function ({ api }) {
+  if (global.autoTimeInterval) clearInterval(global.autoTimeInterval);
+  if (global.autoTimeTimeout) clearTimeout(global.autoTimeTimeout);
+
+  async function sendToAll() {
+    const msg = buildMessage();
+    const threads = global.data?.allThreadID || [];
+
+    if (threads.length === 0) {
+      return console.log("[AUTOTIME] No groups found");
+    }
+
+    console.log(`[AUTOTIME] Sending to ${threads.length} groups`);
+
+    for (const tid of threads) {
       try {
-        const allThreads = await api.getThreadList(1000, null, ["INBOX"]);
-        const groups = allThreads.filter(t => t.isGroup);
-
-        await Promise.all(
-          groups.map(thread =>
-            api.sendMessage({
-              body: msg,
-              attachment: fs.createReadStream(videoPath)
-            }, thread.threadID)
-          )
-        );
-
-        console.log("✅ Message sent:", now);
+        await api.sendMessage(msg, tid);
+        await new Promise(r => setTimeout(r, 1500));
       } catch (e) {
-        console.error("❌ Error:", e);
+        console.log(`[AUTOTIME] Failed ${tid}`);
       }
     }
-  };
+  }
 
-  setInterval(checkTimeAndSend, 30000);
+  const now = moment.tz("Asia/Dhaka");
+  const msUntilNextHour = (60 - now.minutes()) * 60 * 1000 - now.seconds() * 1000 - now.milliseconds();
+
+  console.log(`[AUTOTIME] Next update in ${Math.floor(msUntilNextHour / 60000)} minutes`);
+
+  global.autoTimeTimeout = setTimeout(() => {
+    sendToAll();
+    global.autoTimeInterval = setInterval(sendToAll, 3600000);
+  }, msUntilNextHour);
+
+  console.log("[AUTOTIME] Command loaded successfully with Namaz reminder");
 };
 
-module.exports.onStart = () => {};
+module.exports.onStart = async function ({ api, event, args }) {
+  const { threadID, messageID } = event || {};
+
+  if (!threadID) return console.log("[AUTOTIME] threadID not found");
+
+  // ✅ PREFIX সেফ চেক - এরর খাবে না
+  const prefix = global.config?.PREFIX || ".";
+
+  if (args[0] === "off" || args[0] === "stop") {
+    if (global.autoTimeInterval) clearInterval(global.autoTimeInterval);
+    if (global.autoTimeTimeout) clearTimeout(global.autoTimeTimeout);
+
+    return api.sendMessage(`╔══════════════════╗
+║ ⚠️ সিস্টেম বন্ধ ⚠️ ║
+╚══════════════════╝
+❌ AutoTime বন্ধ করা হয়েছে
+━━━━━━━━━━━━━━━━━━━━
+💡 চালু করতে টাইপ করুন: ${prefix}autotime on
+💡 অথবা: ${prefix}autotime start
+════════════════════
+🤖 𝗔𝘂𝘁𝗼 𝗧𝗶𝗺𝗲 + 𝗡𝗮𝗺𝗮𝘇 𝗦𝘆𝘀𝘁𝗲𝗺 🤖
+════════════════════`, threadID, messageID);
+  }
+
+  if (args[0] === "on" || args[0] === "start") {
+    if (global.autoTimeInterval) {
+      return api.sendMessage(`╔══════════════════╗
+║ ⚠️ ইতিমধ্যে চালু ⚠️ ║
+╚══════════════════╝
+✅ AutoTime অলরেডি চালু আছে
+━━━━━━━━━━━━━━━━━━━━
+💡 বন্ধ করতে টাইপ করুন: ${prefix}autotime off
+💡 অথবা: ${prefix}autotime stop
+════════════════════
+🤖 𝗔𝘂𝘁𝗼 𝗧𝗶𝗺𝗲 + 𝗡𝗮𝗺𝗮𝘇 𝗦𝘆𝘀𝘁𝗲𝗺 🤖
+════════════════════`, threadID, messageID);
+    }
+
+    module.exports.onLoad({ api });
+
+    return api.sendMessage(`╔══════════════════╗
+║ ✅ সিস্টেম চালু ✅ ║
+╚══════════════════╝
+🚀 AutoTime সফলভাবে চালু হয়েছে
+━━━━━━━━━━━━━━━━━━━━
+⏰ প্রতি ঘন্টায় অটো টাইম পাঠাবে
+🕌 নামাজের টাইমে রিমাইন্ডার দিবে
+💡 বন্ধ করতে: ${prefix}autotime off
+════════════════════
+🤖 𝗔𝘂𝘁𝗼 𝗧𝗶𝗺𝗲 + 𝗡𝗮𝗺𝗮𝘇 𝗦𝘆𝘀𝘁𝗲𝗺 🤖
+════════════════════`, threadID, messageID);
+  }
+
+  return api.sendMessage(buildMessage(), threadID, messageID);
+};
