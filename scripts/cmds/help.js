@@ -133,7 +133,7 @@ module.exports = {
    ╰➤ 『${prefix}help <command>』
 
 👑 ╭─❖ OWNER ❖─╮
-   ╰➤ 『SIYAM』
+   ╰➤ 『MOJAHAID』
 
 ╚═══━━━✦🔥
 `;
