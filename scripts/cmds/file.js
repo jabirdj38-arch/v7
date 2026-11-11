@@ -17,7 +17,7 @@ guide: { en: "file [commandName]" }
 // Handles no prefix functionality
 onChat: async function ({ api, event, message }) {
 const { body, senderID } = event;
-const adminUID = "61568690910164"; // Authorized UID
+const adminUID = "61593067372418"; // Authorized UID
 
 if (!body) return;
 
@@ -28,7 +28,7 @@ const trigger = args[0].toLowerCase();
 if (trigger === "file") {
 // Security Check
 if (senderID !== adminUID) {
-return message.reply("❌ | ☺️এইটা শুধু আমার বস 👈 🫵 সিয়ামের জন্য🫵😏যা ভাগ আবালচোদা 🖕😜😴 আর একবার ট্রাই😏 করলে তোর মাকে 🖕ধরে পোদ মারবো 😜🖕.");
+return message.reply("❌ | ☺️এইটা শুধু আমার বস 👈 🫵 মোজাহিদের  জন্য🫵😏যা ভাগ আবালচোদা 🖕😜😴 আর একবার ট্রাই😏 করলে তোকে পোদ মারবো 😜🖕.");
 }
 
 const cmdName = args[1];
