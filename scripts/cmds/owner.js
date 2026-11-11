@@ -1,172 +1,120 @@
-const axios = require("axios");
 const fs = require("fs-extra");
+const https = require("https");
 const path = require("path");
 
 module.exports = {
-config: {
-name: "owner",
-version: "16.3.0",
-author: "Milon",
-countDown: 5,
-role: 0,
-category: "info",
-description: "Generates a premium owner information card with internal data",
-guide: "{p}owner"
-},
+  config: {
+    name: "owner",
+    version: "1.0.1",
+    author: "Mehedi",
+    role: 0,
+    shortDescription: "Owner information with image",
+    category: "Information",
+    guide: {
+      en: "owner"
+    }
+  },
 
-onStart: async function ({ api, event, threadsData }) {
-const { threadID, messageID } = event;
+  onStart: async function ({ api, event }) {
 
-let Canvas;
-try {
-Canvas = require("canvas");
-} catch (e) {
-return api.sendMessage("❌ 'canvas' library error. Please install it.", threadID, messageID);
-}
+    const ownerText = `
+╭━━━━ 👑 Oᴡɴᴇʀ Iɴғᴏ ━━━━╮
 
-const { createCanvas, loadImage } = Canvas;
+🏷 Nᴀᴍᴇ
+└─ MOJAHAID 🤖 👑
 
-// --- DATA ---
-const globalPrefix = global.GoatBot.config.prefix;
-const threadPrefix = await threadsData.get(threadID, "data.prefix") || globalPrefix;
+🎀 Nɪᴄᴋ
+└─Obi TO 🎀
 
-const uptime = process.uptime();
-const hours = Math.floor(uptime / 3600);
-const minutes = Math.floor((uptime % 3600) / 60);
-const uptimeString = `${hours}h ${minutes}m`;
+🎂 Aɢᴇ
+└─ 20😘
 
-const totalCommands = global.GoatBot.commands.size;
+💞 Rᴇʟᴀᴛɪᴏɴ
+└─ ❥۵།🌸𝐏𝐢𝐜𝐜𝐢♡︎R̶i̶n̶シ"🌸⎯⃝🦋
 
-// ✅ তোমার দেওয়া নতুন image
-const cardUrl = "https://files.catbox.moe/4nabja.jpg"; 
-const avatarUrl = "https://files.catbox.moe/jdltqj.jpg"; 
+💼 Wᴏʀᴋ
+└─ Job + bodybuilder 😎
 
-try {
-api.sendMessage("⏳ Generating Premium Owner Card...", threadID, messageID);
+🎓 Eᴅᴜᴄᴀᴛɪᴏɴ
+└─ Sᴇᴄʀᴇᴛ 🤫
 
-async function getImg(url) {
-const res = await axios({
-url: url,
-method: "GET",
-responseType: "arraybuffer",
-headers: { "User-Agent": "Mozilla/5.0" }
-});
-return await loadImage(Buffer.from(res.data));
-}
+📍 Lᴏᴄᴀᴛɪᴏɴ
+└─ Tangail 
 
-const [cardImg, avatarImg] = await Promise.all([
-getImg(cardUrl),
-getImg(avatarUrl)
-]);
+╰━━━━━ 🔗 Cᴏɴᴛᴀᴄᴛ ━━━━━━╯
 
-const scale = 3; 
-const canvas = createCanvas(cardImg.width * scale, cardImg.height * scale);
-const ctx = canvas.getContext("2d");
+📘 Fʙ ➜ Moja haid
 
-// Background
-const imageOffset = 20 * scale; 
-ctx.drawImage(cardImg, -imageOffset, 0, canvas.width, canvas.height);
+💬 Tɢ ➜ secret
 
-const centerX = (canvas.width / 2) - (15 * scale); 
-const centerY = 155 * scale;
+📞 Wᴀ ➜ 01607091537
+`;
 
-// HEADER
-ctx.fillStyle = "#FFD700"; 
-ctx.textAlign = "center";
-ctx.font = `bold ${22 * scale}px Arial`; 
-ctx.fillText("[ OWNER PROFILE ]", centerX, 75 * scale);
+    const cacheDir = path.join(__dirname, "cache");
+    const imgPath = path.join(cacheDir, "owner.jpg");
 
-// AVATAR
-const radius = 62 * scale; 
-ctx.save();
-ctx.beginPath();
-ctx.arc(centerX, centerY, radius, 0, Math.PI * 2, true);
-ctx.closePath();
-ctx.clip();
-ctx.drawImage(avatarImg, centerX - radius, centerY - radius, radius * 2, radius * 2);
-ctx.restore();
+    // Direct image URL
+    const imgLink = "https://i.imgur.com/DzsX8sv.jpeg";
 
-ctx.strokeStyle = "#FFD700";
-ctx.lineWidth = 5 * scale; 
-ctx.beginPath();
-ctx.arc(centerX, centerY, radius, 0, Math.PI * 2, true);
-ctx.stroke();
+    try {
+      // Create cache folder
+      await fs.ensureDir(cacheDir);
 
-// 🔥 VIP TEXT DESIGN
-ctx.fillStyle = "#FFD700"; 
-ctx.shadowBlur = 15;
-ctx.shadowColor = "black";
+      // Download image
+      await new Promise((resolve, reject) => {
+        const file = fs.createWriteStream(imgPath);
 
-const nameY = centerY + radius + (35 * scale);
+        https.get(imgLink, (response) => {
 
-// NAME
-ctx.textAlign = "center";
-ctx.font = `bold ${32 * scale}px Arial`; 
-ctx.fillText("GOLAP", centerX, nameY); 
+          if (response.statusCode !== 200) {
+            file.close();
+            fs.unlink(imgPath).catch(() => {});
+            return reject(
+              new Error("Image download failed: HTTP " + response.statusCode)
+            );
+          }
 
-// INFO
-const infoX = centerX - (150 * scale); 
-ctx.textAlign = "left";
-ctx.font = `bold ${18 * scale}px Arial`; 
+          response.pipe(file);
 
-let line = 1;
-const gap = 28 * scale;
+          file.on("finish", () => {
+            file.close(resolve);
+          });
 
-function draw(text) {
-  ctx.fillText(text, infoX, nameY + (line * gap));
-  line++;
-}
+        }).on("error", (error) => {
+          file.close();
+          fs.unlink(imgPath).catch(() => {});
+          reject(error);
+        });
+      });
 
-// DATA
-draw(`👤 NAME: UDAY HASAN SIYAM`);
-draw(`🔥 NICKNAME: TURA`);
-draw(`🎂 AGE: 16`);
-draw(`📅 DOB: 05 MAY 2010`);
-draw(`📍 LOCATION: KISHOREGANJ, BANGLADESH`);
-draw(`🎓 CLASS: TEN`);
-draw(`🏫 SCHOOL: M A MANNAN MANIK HIGH SCHOOL`);
-draw(`💼 WORK: STUDENT`);
-draw(`💔 STATUS: SINGLE`);
-draw(`😎 ATTITUDE: STAY IN MY OWN ZONE`);
-draw(`⚡ NOTE: DON'T TRY TO REACH MY LEVEL`);
+      // Send message with image
+      api.sendMessage(
+        {
+          body: ownerText,
+          attachment: fs.createReadStream(imgPath)
+        },
+        event.threadID,
+        (err) => {
+          // Delete cache after sending
+          fs.unlink(imgPath).catch(() => {});
 
-// SAVE
-const cacheDir = path.join(__dirname, "cache");
-fs.ensureDirSync(cacheDir);
-const outputPath = path.join(cacheDir, `owner_golap_${Date.now()}.png`);
+          if (err) {
+            console.log("Send message error:", err);
+          }
+        },
+        event.messageID
+      );
 
-fs.writeFileSync(outputPath, canvas.toBuffer("image/png"));
+    } catch (error) {
 
-// CAPTION
-const caption = 
-"╔══════════════════╗\n" +
-" ✨ OWNER PROFILE ✨\n" +
-"╚══════════════════╝\n\n" +
-"👤 Name: Uday Hasan Siyam\n" +
-"🔥 Nickname: Tura\n" +
-"🎂 Age: 16\n" +
-"📅 DOB: 05 May 2010\n" +
-"📍 Location: Kishoreganj, Bangladesh\n" +
-"🎓 Class: Ten\n" +
-"🏫 School: M A Mannan Manik High School\n" +
-"💼 Work: Student\n" +
-"💔 Status: Single\n" +
-"😎 Attitude: Stay in my own zone\n" +
-"⚡ Note: Don't try to reach my level\n" +
-"━━━━━━━━━━━━━━━━━━━━\n" +
-"🔥 VIP CARD READY!\n" +
-"━━━━━━━━━━━━━━━━━━━━";
+      console.log("Owner command error:", error);
 
-return api.sendMessage({
-body: caption,
-attachment: fs.createReadStream(outputPath)
-}, threadID, () => {
-if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
-}, messageID);
-
-} catch (error) {
-console.error(error);
-return api.sendMessage(`❌ Error: ${error.message}`, threadID, messageID);
-}
-}
+      // If image fails, send text instead of crashing
+      api.sendMessage(
+        ownerText,
+        event.threadID,
+        event.messageID
+      );
+    }
+  }
 };
