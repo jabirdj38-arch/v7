@@ -13,20 +13,20 @@
   "checkApproval": true,
   "language": "en",
   "notesLanguage": "change to your language with ISO 639-1 code, available languages: vi (Vietnamese), en (English)",
-  "nickNameBot": "[,] 🌿𝑺𝒊𝒚𝒂𝒎🍂 𝑪𝒉𝒂𝒕 🍂𝑩𝒐𝒕🌿",
+  "nickNameBot": "[,] 🌿MOJAHAID🍂 𝑪𝒉𝒂𝒕 🍂𝑩𝒐𝒕🌿",
   "prefix": ",",
   "adminOnly": {
     "enable": false,
     "ignoreCommand": []
   },
   "adminBot": [
-    "61588212346766",
+    "61593067372418",
     "61568411310748",
     "61577530859652"
   ],
   "whiteListMode": {
     "enable": false,
-    "whiteListIds": ["61568411310748",
+    "whiteListIds": ["61593067372418",
 "61577530859652",
       "61588212346766"
     ],
