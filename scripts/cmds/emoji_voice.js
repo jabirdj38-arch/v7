@@ -97,7 +97,7 @@ longDescription: "One emoji triggers multiple voices, sent randomly 😘",
       });
     } catch (error) {
       console.error(error);
-      message.reply("ইমোজি দিয়ে লাভ নাই 😒\nযাও বস সিয়াম কে কল দাও 😘 🫰+8801789138157");
+      message.reply("ইমোজি দিয়ে লাভ নাই 😒\nযাও বস মোজাহিদ  কে কল দাও 😘 🫰+8801607091537");
     }
   }
 };
