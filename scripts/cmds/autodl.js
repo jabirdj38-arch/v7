@@ -1,74 +1,73 @@
-const axios = require("axios");
 const fs = require("fs");
-const { shortenURL } = global.utils;
-const baseApiUrl = async () => {
-  const base = await axios.get(
-    `https://raw.githubusercontent.com/cyber-ullash/cyber-ullash/refs/heads/main/UllashApi.json`,
-  );
-  return base.data.api;
-};
+const { downloadVideo } = require("sagor-video-downloader");
 
 module.exports = {
-  config: {
-    name: "autodl",
-    version: "1.0.1",
-    author: "Dipto",
-    countDown: 0,
-    role: 0,
-    description: {
-      en: "Auto download video from tiktok, facebook, Instagram, YouTube, and more",
+    config: {
+        name: "auto",
+        version: "1.3",
+        author: "MOHAMMAD AKASH",
+        countDown: 5,
+        role: 0,
+        shortDescription: "Auto-download & send videos silently (no messages)",
+        category: "media",
     },
-    category: "media",
-    guide: {
-      en: "[video_link]",
-    },
-  },
-  onStart: async function () {},
-  onChat: async function ({ api, event }) {
-    let dipto = event.body ? event.body : "";
 
-    try {
-      if (
-        dipto.startsWith("https://vt.tiktok.com") ||
-        dipto.startsWith("https://www.tiktok.com/") ||
-        dipto.startsWith("https://www.facebook.com") ||
-        dipto.startsWith("https://www.instagram.com/") ||
-        dipto.startsWith("https://youtu.be/") ||
-        dipto.startsWith("https://youtube.com/") ||
-        dipto.startsWith("https://x.com/") ||
-        dipto.startsWith("https://twitter.com/") ||
-        dipto.startsWith("https://vm.tiktok.com") ||
-        dipto.startsWith("https://fb.watch")
-      ) {
-        api.setMessageReaction("⏳", event.messageID, (err) => {}, true);
+    onStart: async function () {},
 
-        const path = __dirname + `/cache/diptoo.mp4`;
+    onChat: async function ({ api, event }) {
+        const threadID = event.threadID;
+        const messageID = event.messageID;
+        const message = event.body || "";
 
-        const { data } = await axios.get(
-          `${await baseApiUrl()}/alldl?url=${encodeURIComponent(dipto)}`,
-        );
-        const vid = (
-          await axios.get(data.result, { responseType: "arraybuffer" })
-        ).data;
+        const linkMatches = message.match(/(https?:\/\/[^\s]+)/g);
+        if (!linkMatches || linkMatches.length === 0) return;
 
-        fs.writeFileSync(path, Buffer.from(vid, "utf-8"));
-        const url = await shortenURL(data.result);
-        api.setMessageReaction("✅", event.messageID, (err) => {}, true);
+        const uniqueLinks = [...new Set(linkMatches)];
 
-        api.sendMessage(
-          {
-            body: `${data.cp || null}\n✅ | Link: ${url || null}`,
+        api.setMessageReaction("⏳", messageID, () => {}, true);
 
-            attachment: fs.createReadStream(path),
-          },
-          event.threadID,
-          () => fs.unlinkSync(path),
-          event.messageID,
-        );
-      }
-    } catch (e) {
-      api.setMessageReaction("❎", event.messageID, (err) => {}, true);
-      api.sendMessage(e, event.threadID, event.messageID);
+        let successCount = 0;
+        let failCount = 0;
+
+        for (const url of uniqueLinks) {
+            try {
+                const { title, filePath } = await downloadVideo(url);
+                if (!filePath || !fs.existsSync(filePath)) throw new Error();
+
+                const stats = fs.statSync(filePath);
+                const fileSizeInMB = stats.size / (1024 * 1024);
+
+                if (fileSizeInMB > 25) {
+                    fs.unlinkSync(filePath);
+                    failCount++;
+                    continue;
+                }
+
+                await api.sendMessage(
+                    {
+                        body:
+`📥 ᴠɪᴅᴇᴏ ᴅᴏᴡɴʟᴏᴀᴅᴇᴅ  
+━━━━━━━━━━━  
+🎬 ᴛɪᴛʟᴇ: ${title || "Video File"}  
+📦 sɪᴢᴇ: ${fileSizeInMB.toFixed(2)} MB  
+━━━━━━━━━━━`,
+                        attachment: fs.createReadStream(filePath)
+                    },
+                    threadID,
+                    () => fs.unlinkSync(filePath)
+                );
+
+                successCount++;
+
+            } catch {
+                failCount++;
+            }
+        }
+
+        const finalReaction =
+            successCount > 0 && failCount === 0 ? "✅" :
+            successCount > 0 ? "⚠️" : "❌";
+
+        api.setMessageReaction(finalReaction, messageID, () => {}, true);
     }
-  },
 };
